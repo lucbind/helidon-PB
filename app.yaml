@@ -1,0 +1,78 @@
+#
+# MIT License
+#
+#  Copyright (c) 2020 PaoloB
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helidon-jpa-secret
+type: Opaque
+stringData:
+  javax_sql_DataSource_noteDataSource_URL: "jdbc:oracle:thin:@//DB_HOSTNAME?TNS_ADMIN=TNS_ADMIN_PATH"
+  javax_sql_DataSource_noteDataSource_user: "DB_USERNAME"
+  javax_sql_DataSource_noteDataSource_password: "DB_PASSWORD"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helidon-jpa
+  labels:
+    app: helidon-jpa
+spec:
+#  type: NodePort
+  type: LoadBalancer
+  selector:
+    app: helidon-jpa
+  ports:
+  - port: 8081
+    targetPort: 8081
+    nodePort: 30081
+    name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helidon-jpa
+  labels:
+    app: helidon-jpa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: helidon-jpa
+  template:
+    metadata:
+      labels:
+        app: helidon-jpa
+        version: v1
+    spec:
+      containers:
+      - name: helidon-jpa
+        image: OCIR_REGION/OCIR_NAMESPACE/helidon-jpa:last
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+        envFrom:
+        - secretRef:
+            name: helidon-jpa-secret
+      imagePullSecrets:
+      - name: ocir-secret

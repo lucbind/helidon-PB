@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<!--
+
+    MIT License
+
+    Copyright (c) 2020 PaoloB
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+-->
+
+<html lang="en-us">
+
+<head>
+  <title>Kubernetes & Helidon CI/CD Workshop App</title>
+  <meta http-equiv="x-ua-compatible" content="IE=edge" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="viewport-fit=cover, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="css/images/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="css/images/touchicon.png">
+  <meta name="apple-mobile-web-app-title" content="Oracle JET">
+
+<!-- injector:theme -->
+<link rel="stylesheet" href="css/redwood/10.0.2/web/redwood.min.css" id="css" />
+<!-- endinjector -->
+
+  <link rel="stylesheet" href="css/custom.css" id="custom_css" />
+</head>
+
+<body>
+
+  <div id="bodyWrapper" class="oj-flex">
+    <!-- Left column empty -->
+    <div class="oj-sm-1 oj-md-3 oj-lg-2 oj-xl-2 oj-flex-item"></div>
+
+    <!-- Center column -->
+    <div class="oj-sm-10 oj-md-6 oj-lg-8 oj-xl-8 oj-flex-item oj-sm-margin-2x oj-panel">
+
+      <!-- Header -->
+      <oj-collapsible id="collapsiblePage" data-oj-binding-provider="none">
+        <img id="header" slot="header" class="oj-header-border" src="images/oracle-logo.png" style="margin: auto;"></img>
+        <div id="content" class="oj-panel oj-bg-neutral-30">
+          <h1>Simple CRUD Notes</h1>
+          <p>
+            This application demonstrates how a Helidon application implements a CRUD endpoint to manage simple notes.
+            This simple frontend interacts via REST APIs with the Helidon Backend.
+          </p>
+          <p>Behind the scenes, we have:
+          <ul>
+            <li>Oracle JET for the UI</li>
+            <li>Helidon MP as the microservices framework</li>
+            <li>EclipseLink ORM taking care of all CRUD operations</li>
+            <li>JAX-RS powering the REST API</li>
+            <li>CDI based dependency injection framework</li>
+            <li>HikariCP for datasource implementation</li>
+            <li>Kubernetes as a Container Platform</li>
+            <li>Jenkins for CI/CD</li>
+            <li>Oracle for Database persistence</li>
+          </ul>
+          </p>
+        </div>
+      </oj-collapsible>
+
+      <!-- Main content -->
+      <div id="mainContent">
+        <div class="oj-flex">
+          <div class="oj-flex-item oj-sm-1 oj-md-3 oj-lg-2 oj-xl-2"></div>
+          <div class="oj-flex-item oj-sm-10 oj-md-6 oj-lg-8 oj-xl-8">
+            <h3>Published notes</h3>
+            <oj-table id="table" data="[[datasource]]"
+                      columns='[{"headerText": "Remove", "id": "column1", "sortable": "disabled"},
+                                {"headerText": "Note Id", "field": "id", "sortable": "enabled"},
+                                {"headerText": "Note Name", "field": "name", "sortable": "enabled"},
+                                {"headerText": "Note Contents", "field": "contents", "sortable": "enabled"}]'
+                      selection-mode='{"row": "none", "column": "none"}'>
+              <template slot='rowTemplate' data-oj-as='row'>
+                <tr>
+                  <td>
+                    <oj-checkboxset aria-hidden='true' on-value-changed="[[enableDelete]]" class='oj-checkboxset-no-chrome'>
+                      <oj-option :id="[[row.data.id]]" value="[[row.data.id]]"></oj-option>
+                    </oj-checkboxset>
+                  </td>
+                  <td>
+                    <div id='noteId' on-click="[[function(data, event) { showEditNoteDialog(row.data.id, data, event) }]]">
+                      <oj-bind-text value="[[row.data.id]]"></oj-bind-text>
+                    </div>
+                  </td>
+                  <td>
+                    <div id="noteName" on-click="[[function(data, event) { showEditNoteDialog(row.data.id, data, event) }]]">
+                      <oj-bind-text value="[[row.data.name]]"></oj-bind-text>
+                    </div>
+                  </td>
+                  <td>
+                    <div id="noteContents" on-click="[[function(data, event) { showEditNoteDialog(row.data.id, data, event) }]]">
+                      <oj-bind-text value="[[row.data.contents]]"></oj-bind-text>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </oj-table>
+            <p>
+              <br/>
+              (Click on a Note to edit it)
+            </p>
+            <oj-button id="deleteNote_btn" disabled="[[!somethingChecked()]]" on-oj-action="[[deleteNote]]">Delete Note</oj-button>
+
+            <oj-dialog id="editDialog" style="display:none" dialog-title="Update Note" drag-affordance="title-bar" modality="modeless" resize-behavior="none">
+              <div slot="header" class="oj-helper-clearfix" aria-labelledby="dialog-title-id">
+                <div>
+                  <span id="dialog-title-id" class="oj-dialog-title">Update Note</span>
+                </div>
+              </div>
+              <div slot="body">
+                <div class="oj-md-odd-cols-4">
+                  <oj-label for="newName" class="oj-label">Note Name</oj-label>
+                  <oj-input-text id="newName" value="{{currentNoteName}}"></oj-input-text>
+                </div>
+                <div class="oj-md-odd-cols-4">
+                  <oj-label for="newContents" class="oj-label">Note Contents</oj-label>
+                  <oj-input-text id="newContents" value="{{currentNoteContents}}"></oj-input-text>
+                </div>
+              </div>
+              <div slot="footer">
+                <oj-button id="submitBtn" on-oj-action="[[updateNote]]">Update</oj-button>
+                <oj-button id="resetBtn" on-oj-action="[[cancelDialog]]">Cancel</oj-button>
+              </div>
+            </oj-dialog>
+          </div>
+          <div class="oj-flex-item oj-sm-1 oj-md-3 oj-lg-2 oj-xl-2"></div>
+        </div>
+
+        <div class="oj-flex">
+          <div class="oj-flex-item oj-sm-1 oj-md-3 oj-lg-2 oj-xl-2"></div>
+          <div class="oj-flex-item">
+            <h3>Create a note</h3>
+            <oj-form-layout direction="row" class="oj-formlayout-full-width">
+              <oj-input-number id="newNoteId" value="{{newNoteId}}" label-hint="Note Id"></oj-input-number>
+              <oj-input-text id="newNoteName" value="{{newNoteName}}" placeholder="Enter name" label-hint="Note Name"></oj-input-text>
+              <oj-input-text id="newNoteContents" value="{{newNoteContents}}" placeholder="Enter contents" label-hint="Note Contents"></oj-input-text>
+              <oj-button id="saveBtn" on-oj-action="[[addNote]]">Create Note</oj-button>
+            </oj-form-layout>
+          </div>
+          <div class="oj-flex-item oj-sm-1 oj-md-3 oj-lg-2 oj-xl-2"></div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <h2>Powered By:</h2>
+        <img src="images/ojet-logo.png" style="width:100px;" />
+        <span style="display:inline-block; width: 50px;"></span>
+        <img src="images/helidon-logo.png" style="width:35%;" />
+        <span style="display:inline-block; width: 50px;"></span>
+        <img src="images/kubernetes-logo.png" style="width:10%;" />
+        <div>
+          <span style="display:inline-block; height: 25px;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column empty -->
+    <div class="oj-sm-1 oj-md-3 oj-lg-2 oj-xl-2 oj-flex-item"></div>
+  </div>
+
+  <script type="text/javascript" src="js/libs/require/require.js"></script>
+  <script type="text/javascript" src="js/main.js"></script>
+</body>
+
+</html>
